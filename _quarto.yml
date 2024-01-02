@@ -4,7 +4,7 @@ project:
 
 book:
   title: "{{< var maxyr >}} TAMPA BAY REASONABLE ASSURANCE COMPLIANCE ASSESSMENT REPORT"
-  repo-url: https://github.com/tbep-tech/tbnmc-compliance-assessment-2022
+  repo-url: https://github.com/tbep-tech/tbnmc-compliance-assessment-2023
   reader-mode: true
   downloads: pdf
   chapters:

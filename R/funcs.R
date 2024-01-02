@@ -150,13 +150,6 @@ hydrotab <- function(maxyr, noaa_key, fsz = 13){
 
 }
 
-# get legend from an existing ggplot object
-g_legend<-function(a.gplot){
-  tmp <- ggplot_gtable(ggplot_build(a.gplot))
-  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
-  legend <- tmp$grobs[[leg]]
-  return(legend)}
-
 # customized version of show_thrpolot
 show_rathrplot <- function(epcdata, bay_segment = c('OTB', 'HB', 'MTB', 'LTB'), thr = c('chla', 'la'), trgs = NULL, yrrng = c(1975, 2019),
                            family = NA, labelexp = TRUE, txtlab = TRUE, thrs = FALSE, partialyr = FALSE){
@@ -309,32 +302,13 @@ show_rachlplot <- function(wqdat, maxyr, fml){
 
   yrrng <- c(1975, maxyr)
   p1 <- show_rathrplot(wqdat, bay_segment = "OTB", thr = "chla", yrrng = yrrng, family = fml, thrs = T)
-  p1leg <- g_legend(p1)
-  p1 <- p1 + theme(legend.position = 'none')
-  p2 <- show_rathrplot(wqdat, bay_segment = "HB", thr = "chla", yrrng = yrrng, family = fml, thrs = T) + theme(legend.position = 'none')
-  p3 <- show_rathrplot(wqdat, bay_segment = "MTB", thr = "chla", yrrng = yrrng, family = fml, thrs = T) + theme(legend.position = 'none')
-  p4 <- show_rathrplot(wqdat, bay_segment = "LTB", thr = "chla", yrrng = yrrng, family = fml, thrs = T) + theme(legend.position = 'none')
+  p2 <- show_rathrplot(wqdat, bay_segment = "HB", thr = "chla", yrrng = yrrng, family = fml, thrs = T)
+  p3 <- show_rathrplot(wqdat, bay_segment = "MTB", thr = "chla", yrrng = yrrng, family = fml, thrs = T)
+  p4 <- show_rathrplot(wqdat, bay_segment = "LTB", thr = "chla", yrrng = yrrng, family = fml, thrs = T)
 
-  # align
-  # Get the widths
-  pA <- ggplot_gtable(ggplot_build(p1))
-  pB <- ggplot_gtable(ggplot_build(p2))
-  pC <- ggplot_gtable(ggplot_build(p3))
-  pD <- ggplot_gtable(ggplot_build(p4))
-  maxWidth = grid::unit.pmax(pA$widths[2:3], pB$widths[2:3], pD$widths[2:3], pD$widths[2:3])
-
-  # Set the widths
-  pA$widths[2:3] <- maxWidth
-  pB$widths[2:3] <- maxWidth
-  pC$widths[2:3] <- maxWidth
-  pD$widths[2:3] <- maxWidth
-
-  grid.arrange(
-    p1leg,
-    arrangeGrob(pA, pB, ncol = 2),
-    arrangeGrob(pC, pD, ncol = 2),
-    ncol = 1, heights = c(0.1, 1, 1)
-  )
+  p <- (guide_area() / (p1 + p2 + p3 + p4)) + plot_layout(ncol = 1, guides = 'collect', heights = unit(c(1, 1), c("cm", "null")))
+  
+  return(p)
 
 }
 
@@ -353,33 +327,14 @@ show_chlboxplot <- function(wqdat, maxyr, fml){
     text = element_text(family = fml)
   )
 
-  p1 <- show_boxplot(wqdat, bay_segment = "OTB", yrrng = yrrng, yrsel = maxyr, family = fml) + thrthm
-  p1leg <- g_legend(p1)
-  p1 <- p1 + theme(legend.position = 'none')
-  p2 <- show_boxplot(wqdat, bay_segment = "HB", yrrng = yrrng, yrsel = maxyr, family = fml) + thrthm + theme(legend.position = 'none')
-  p3 <- show_boxplot(wqdat, bay_segment = "MTB", yrrng = yrrng, yrsel = maxyr, family = fml) + thrthm + theme(legend.position = 'none')
-  p4 <- show_boxplot(wqdat, bay_segment = "LTB",  yrrng = yrrng, yrsel = maxyr, family = fml) + thrthm + theme(legend.position = 'none')
+  p1 <- show_boxplot(wqdat, bay_segment = "OTB", yrrng = yrrng, yrsel = maxyr, family = fml)
+  p2 <- show_boxplot(wqdat, bay_segment = "HB", yrrng = yrrng, yrsel = maxyr, family = fml)
+  p3 <- show_boxplot(wqdat, bay_segment = "MTB", yrrng = yrrng, yrsel = maxyr, family = fml)
+  p4 <- show_boxplot(wqdat, bay_segment = "LTB",  yrrng = yrrng, yrsel = maxyr, family = fml)
 
-  # align
-  # Get the widths
-  pA <- ggplot_gtable(ggplot_build(p1))
-  pB <- ggplot_gtable(ggplot_build(p2))
-  pC <- ggplot_gtable(ggplot_build(p3))
-  pD <- ggplot_gtable(ggplot_build(p4))
-  maxWidth = grid::unit.pmax(pA$widths[2:3], pB$widths[2:3], pD$widths[2:3], pD$widths[2:3])
-
-  # Set the widths
-  pA$widths[2:3] <- maxWidth
-  pB$widths[2:3] <- maxWidth
-  pC$widths[2:3] <- maxWidth
-  pD$widths[2:3] <- maxWidth
-
-  grid.arrange(
-    p1leg,
-    arrangeGrob(pA, pB, ncol = 2),
-    arrangeGrob(pC, pD, ncol = 2),
-    ncol = 1, heights = c(0.1, 1, 1)
-  )
+  p <- (guide_area() / (p1 + p2 + p3 + p4)) + plot_layout(ncol = 1, guides = 'collect', heights = unit(c(1, 1), c("cm", "null"))) & thrthm
+  
+  return(p)
 
 }
 

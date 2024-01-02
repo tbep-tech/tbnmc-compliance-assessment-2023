@@ -1,7 +1,7 @@
 ---
 title: The Tampa Bay Nitrogen Management Consortium Partnership for Progress
 params:
-  maxyr: 2022
+  maxyr: 2023
 ---
 
 ![](www/header.png)
@@ -13,10 +13,10 @@ library(tibble)
 source('R/funcs.R')
 
 # table function for header
-headertab(dt = '2023-02-07', maxyr = params$maxyr)
+headertab(dt = '2024-01-02', maxyr = params$maxyr)
 ```
 
-Source content: [here](https://github.com/tbep-tech/tbnmc-compliance-assessment-2022)
+Source content: [here](https://github.com/tbep-tech/tbnmc-compliance-assessment-2023)
 
 On behalf of the Tampa Bay Nitrogen Management Consortium, please find attached the {{< var maxyr >}} update on water quality and seagrass resources in the Tampa Bay estuary. This update has been developed in accordance with the compliance assessment adopted through [FDEP’s Tampa Bay Reasonable Assurance determination on December 22, 2010](https://drive.google.com/file/d/1wV3w8ack_fLNK3yS-xTR7LTmziNtZ8CN/view?usp=share_link), FDEP’s subsequent approval of the [2022 RA Update](https://drive.google.com/file/d/1IIloBN5RoZPB6vgWzEjmMQyFjFL3fq0Y/view?usp=share_link), and the [federally-recognized TMDL for Tampa Bay](https://drive.google.com/file/d/18_W1qKT2I0j9m0mLC7wWjndSNR-0iWEF/view?usp=share_link). The formal annual compliance assessment utilized by the Consortium is detailed in Section VIII.B of the [Final 2009 Reasonable Assurance Addendum: Allocation and Assessment Report](https://drive.google.com/file/d/10IjJAfcGFf007a5VdPXAUtUi4dx-cmsA/view).
 

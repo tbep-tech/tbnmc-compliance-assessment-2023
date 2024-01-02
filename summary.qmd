@@ -1,7 +1,7 @@
 ---
 title: "{{< var maxyr >}} Results Summary"
 params:
-  maxyr: 2022
+  maxyr: 2023
 bibliography: refs.bib
 ---
 
@@ -9,11 +9,9 @@ bibliography: refs.bib
 library(tbeptools)
 library(glue)
 library(tidyverse)
-library(gridExtra)
-library(grid)
+library(patchwork)
 library(english)
 library(here)
-library(ggfx)
 library(flextable)
 library(ftExtra)
 
@@ -73,7 +71,7 @@ show_chlboxplot(wqdat, params$maxyr, fml)
 #| fig-width: 6
 #| fig-align: center
 #| out-width: "90%"
-show_seagrasscoverage(seagrass, maxyr = params$maxyr, lastlab = 'acres (Provisional)')
+show_seagrasscoverage(seagrass, maxyr = 2022, lastlab = 'acres')
 ```
 
 ```{r}

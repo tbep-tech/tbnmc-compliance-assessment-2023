@@ -34,15 +34,11 @@ jobs:
         with:
           packages: |
             any::tidyverse
-            any::extrafont
             any::flextable
-            any::gridExtra
-            any::english
+            any::patchwork
             any::here
             any::rmarkdown
-            any::ggfx
             any::ggmap
-            any::ggsn
             any::ggrepel
             any::knitr
             any::ftExtra
