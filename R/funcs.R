@@ -324,7 +324,8 @@ show_chlboxplot <- function(wqdat, maxyr, fml){
     plot.title = element_text(size = 22, colour = txtcol),
     legend.text = element_text(size = 16, colour = txtcol),
     axis.text.x = element_text(size = 14, colour = txtcol, angle = 0, hjust = 0.5),
-    text = element_text(family = fml)
+    text = element_text(family = fml), 
+    legend.position = 'top'
   )
 
   p1 <- show_boxplot(wqdat, bay_segment = "OTB", yrrng = yrrng, yrsel = maxyr, family = fml)
