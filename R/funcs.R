@@ -37,8 +37,9 @@ headertab <- function(dt = NULL, maxyr ,fsz = 13){
     fontsize(i = 6:10, size = fsz * 0.8461538) %>%
     delete_part('header') %>%
     border_remove() %>%
-    font(fontname = 'Lato light', part = 'all') %>%
-    valign(valign = 'top')
+    font(fontname = 'Roboto', part = 'all') %>%
+    valign(valign = 'top') %>% 
+    color(color = '#636363', part = 'all')
 
   return(out)
 
