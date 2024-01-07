@@ -151,77 +151,74 @@ hydrotab <- function(maxyr, noaa_key, fsz = 13){
 
 }
 
-# customized version of show_thrpolot
-show_rathrplot <- function(epcdata, bay_segment = c('OTB', 'HB', 'MTB', 'LTB'), thr = c('chla', 'la'), trgs = NULL, yrrng = c(1975, 2019),
+show_rathrplot <- function(datin, bay_segment = c('OTB', 'HB', 'MTB', 'LTB', 'BCBS', 'TCB', 'MR'), thr = c('chla', 'la'), trgs = NULL, yrrng = c(1975, 2019),
                            family = NA, labelexp = TRUE, txtlab = TRUE, thrs = FALSE, partialyr = FALSE){
-
-
+  
+  
   maxyr <- yrrng[2]
-
+  
   # default targets from data file
   if(is.null(trgs))
     trgs <- targets
-
+  
   # yrrng must be in ascending order
   if(yrrng[1] >= yrrng[2])
     stop('yrrng argument must be in ascending order, e.g., c(1975, 2019)')
-
+  
   # segment
   bay_segment <- match.arg(bay_segment)
-
+  
   # wq to plot
   thr <- match.arg(thr)
-
+  
   # colors
   cols <- c("Annual Mean"="red", "Management Target"="blue", "+1 se (small exceedance)"="blue", "+2 se (large exceedance)"="blue")
-
+  
   # averages
-  aves <- anlz_avedat(epcdata, partialyr = partialyr)
-
+  aves <- raanlz_avedat(datin, partialyr = partialyr)
+  
   # axis label
   if(labelexp)
-    axlab <- ifelse(thr == 'chla', expression("Mean Ann. Chl-a ("~ mu * "g\u00B7L"^-1 *")"),
-                    ifelse(thr == 'la', expression("Mean Ann. Light Att. (m  " ^-1 *")"), NA))
+    axlab <- dplyr::case_when(
+      thr == 'chla' ~ expression("Mean Ann. Chl-a ("~ mu * "g\u00B7L"^-1 *")")
+    )
   if(!labelexp)
     axlab <- dplyr::case_when(
-      thr == 'chla' ~ "Mean Ann. Chl-a (ug/L)",
-      thr == 'la' ~ "Mean Ann. Light Atten. (m-1)"
+      thr == 'chla' ~ "Mean Ann. Chl-a (ug/L)"
     )
-
+  
   # get lines to plot
   toln <- trgs %>%
     dplyr::filter(bay_segment %in% !!bay_segment)
   trgnum <- toln %>% dplyr::pull(!!paste0(thr, '_target'))
   smlnum <- toln %>% dplyr::pull(!!paste0(thr, '_smallex'))
   thrnum <- toln %>% dplyr::pull(!!paste0(thr, '_thresh'))
-
-
+  
+  
   # change label location if thrs is true
   if(!thrs)
     num <- trgnum
   if(thrs)
     num <- thrnum
-
+  
   # threshold label
   if(labelexp)
     trglab <- dplyr::case_when(
-      thr == 'chla' ~ paste(num, "~ mu * g%.%L^{-1}"),
-      thr == 'la' ~ paste(num, "~m","^{-1}")
+      thr == 'chla' ~ paste(num, "~ mu * g%.%L^{-1}")
     )
   if(!labelexp)
     trglab <- dplyr::case_when(
-      thr == 'chla' ~ paste(num, "ug/L"),
-      thr == 'la' ~ paste(num, "m-1")
+      thr == 'chla' ~ paste(num, "ug/L")
     )
-
+  
   # bay segment plot title
   ttl <- trgs %>%
     dplyr::filter(bay_segment %in% !!bay_segment) %>%
     dplyr::pull(name)
-
+  
   if(partialyr)
     ttl <- paste0(ttl, '*')
-
+  
   # get data to plo
   toplo <- aves$ann %>%
     dplyr::filter(grepl(paste0('_', thr, '$'), var)) %>%
@@ -229,11 +226,11 @@ show_rathrplot <- function(epcdata, bay_segment = c('OTB', 'HB', 'MTB', 'LTB'), 
     dplyr::filter(bay_segment == !!bay_segment) %>%
     dplyr::filter(yr >= yrrng[1] & yr <= yrrng[2]) %>%
     tidyr::spread(var, val)
-
+  
   p <- ggplot(toplo) +
-    geom_rect(xmin = 2022, xmax = 2026, ymin = -Inf, ymax = Inf, fill = 'grey', alpha = 0.6) +
+    geom_rect(xmin = 2017, xmax = 2021, ymin = -Inf, ymax = Inf, fill = 'grey', alpha = 0.6) + 
     geom_point(data = toplo, aes(x = yr, y = yval, colour = "Annual Mean"), size = 3) +
-    geom_line(data = toplo, aes(x = yr, y = yval, colour = "Annual Mean"), linetype = 'solid', linewidth = 0.75) +
+    geom_line(data = toplo, aes(x = yr, y = yval, colour = "Annual Mean"), linetype = 'solid', size = 0.75) +
     labs(y = axlab, title = ttl) +
     scale_x_continuous(breaks = seq(1975, maxyr, by = 5)) +
     theme(panel.grid.minor=element_blank(),
@@ -250,7 +247,7 @@ show_rathrplot <- function(epcdata, bay_segment = c('OTB', 'HB', 'MTB', 'LTB'), 
           axis.text.x = element_text(colour = 'black', angle = 0, size = 14, hjust = 0.5),
           text = element_text(family)
     )
-
+  
   # all targets/thresholds
   if(!thrs)
     p <- p +
@@ -266,7 +263,7 @@ show_rathrplot <- function(epcdata, bay_segment = c('OTB', 'HB', 'MTB', 'LTB'), 
         size = c(0.75, 0.5, 0.5, 0.5)
       )
     ))
-
+  
   # thresholds only
   if(thrs)
     p <- p +
@@ -280,34 +277,37 @@ show_rathrplot <- function(epcdata, bay_segment = c('OTB', 'HB', 'MTB', 'LTB'), 
         size = c(0.75, 0.5)
       )
     ))
-
+  
   if(txtlab & !thrs)
     p <- p +
     geom_text(aes(yrrng[1], num, label = trglab), parse = labelexp, hjust = 0.2, vjust = 1, family = family, colour = 'blue')
-
+  
   if(txtlab & thrs)
     p <- p +
-    geom_text(aes(yrrng[1], label = trglab), y = max(toplo$yval), parse = labelexp, hjust = 0.2, vjust = 1, family = family, colour = 'blue')
-
-
+    geom_text(aes(yrrng[1], max(yval), label = trglab), parse = labelexp, hjust = 0.2, vjust = 1, family = family, colour = 'blue')
+  
+  
   if(partialyr)
     p <- p +
     labs(caption = paste0('*Incomplete data for ', max(yrrng), ' estimated by five year average'))
-
+  
   return(p)
-
+  
 }
 
 # annual chlorophyll figure
-show_rachlplot <- function(wqdat, maxyr, fml){
+show_rachlplot <- function(chldat, maxyr, fml){
 
   yrrng <- c(1975, maxyr)
-  p1 <- show_rathrplot(wqdat, bay_segment = "OTB", thr = "chla", yrrng = yrrng, family = fml, thrs = T)
-  p2 <- show_rathrplot(wqdat, bay_segment = "HB", thr = "chla", yrrng = yrrng, family = fml, thrs = T)
-  p3 <- show_rathrplot(wqdat, bay_segment = "MTB", thr = "chla", yrrng = yrrng, family = fml, thrs = T)
-  p4 <- show_rathrplot(wqdat, bay_segment = "LTB", thr = "chla", yrrng = yrrng, family = fml, thrs = T)
-
-  p <- (guide_area() / (p1 + p2 + p3 + p4)) + plot_layout(ncol = 1, guides = 'collect', heights = unit(c(1, 1), c("cm", "null")))
+  p1 <- show_rathrplot(chldat, bay_segment = "OTB", thr = "chla", yrrng = yrrng, family = fml, thrs = T)
+  p2 <- show_rathrplot(chldat, bay_segment = "HB", thr = "chla", yrrng = yrrng, family = fml, thrs = T)
+  p3 <- show_rathrplot(chldat, bay_segment = "MTB", thr = "chla", yrrng = yrrng, family = fml, thrs = T)
+  p4 <- show_rathrplot(chldat, bay_segment = "LTB", thr = "chla", yrrng = yrrng, family = fml, thrs = T)
+  p5 <- show_rathrplot(chldat, bay_segment = "BCBS", thr = "chla", yrrng = yrrng, thrs = T)
+  p6 <- show_rathrplot(chldat, bay_segment = "TCB", thr = "chla", yrrng = yrrng, thrs = T)
+  p7 <- show_rathrplot(chldat, bay_segment = "MR", thr = "chla", yrrng = yrrng, thrs = T) 
+  
+  p <- (guide_area() / (p1 + p2 + p3 + p4 + p5 + p6 + p7)) + plot_layout(ncol = 1, guides = 'collect', heights = unit(c(1, 1), c("cm", "null")))
   
   return(p)
 
@@ -355,4 +355,34 @@ show_chlmatrix <- function(wqdat, maxyr, fml){
 
   return(out)
 
+}
+
+# get rdata from github
+# try simple load, download if fail
+rdataload <- function(flurl){
+
+  fl <- basename(flurl)
+  obj <- gsub('\\.RData$', '', fl)
+  
+  # try simple load
+  ld <- try(load(url(flurl)), silent = T)
+  
+  # return x if load worked
+  if(!inherits(ld, 'try-error')){
+    out <- get(obj)
+  }
+  
+  # download x if load failed
+  if(inherits(ld, 'try-error')){
+    
+    fl <- paste(tempdir(), fl, sep = '/')
+    download.file(flurl, destfile = fl, quiet = T)
+    load(file = fl)
+    out <- get(obj)
+    suppressMessages(file.remove(fl))
+    
+  }
+  
+  return(out)
+  
 }
