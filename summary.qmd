@@ -13,12 +13,15 @@ library(patchwork)
 library(here)
 library(flextable)
 library(ftExtra)
+library(ggspatial)
+library(ggrepel)
+library(sf)
 
 source('R/funcs.R')
 
 fml <- NA
 
-data(wqdat)
+data(chldat)
 ```
 
 Results from {{< var maxyr >}} indicate that all RA bay segments met chlorophyll-a thresholds accepted by the FDEP to maintain FDEP Reasonable Assurance for Tampa Bay and to comply with the EPA TMDL (@fig-thrplot) and estuarine numeric nutrient criteria for Tampa Bay ([EPA Amended Approval Letter Jun. 28, 2013](https://www.epa.gov/sites/default/files/2015-04/documents/florida-amended-determination.pdf)). During the previous RA period (2017-2021), Old Tampa Bay exceeded the chlorophyll-a threshold for four of the five years.  While the chlorophyll-a threshold was met in Old Tampa Bay for the 2022 annual assessment period, water quality conditions in this bay segment remain a priority concern for the Consortium.  Chlorophyll-a concentrations are typically elevated in a poorly flushed region that has produced summertime blooms of *Pyrodinium bahamense* since 2009 (@fig-sitemap); *Note that individual station exceedences are not considered in this RA compliance assessment*). This observation is reflected in the majority of summertime months with chlorophyll-a concentrations higher than long-term median values in Old Tampa Bay, although this was not observed in 2022 (@fig-boxplot). To address these water quality problems, the Consortium formed an Old Tampa Bay Working Group in early 2020 to prioritize additional investigations and future management actions that may alleviate the conditions fostering these summertime blooms. Additionally, the TBEP received funding from a NOAA Restore Actionable Science grant in 2021 to develop a research management plan for identifying potential actions to improve water quality conditions in Old Tampa Bay. The plan will be finalized in early 2023, and a grant proposal was submitted to NOAA for the next research phases outlined in the plan.
@@ -40,8 +43,8 @@ hydrotab(params$maxyr, Sys.getenv('NOAA_KEY'))
 #| fig-cap: "Historic chlorophyll-a annual averages for the four major bay segments of Tampa Bay. Annual averages in {{< var maxyr >}} were below the regulatory thresholds developed under the Tampa Nitrogen Management Consortium’s nutrient management strategy in all four bay segments. Vertical grey bars indicate the the 2022-2026 Reasonable Assurance compliance assessment period Data source: EPCHC."
 #| fig-align: center
 #| fig-width: 12
-#| fig-height: 9
-show_rachlplot(wqdat, params$maxyr, fml)
+#| fig-height: 14
+show_rachlplot(chldat, params$maxyr, fml)
 ```
 
 ```{r}
@@ -51,16 +54,16 @@ show_rachlplot(wqdat, params$maxyr, fml)
 #| fig-height: 8
 #| fig-width: 5
 #| out-width: "70%"
-show_sitemap(wqdat, yrsel = params$maxyr, thrs = T)
+show_rasitemap(chldat, params$maxyr, thrs = T)
 ```
 
 ```{r}
 #| label: fig-boxplot
-#| fig-cap: !expr paste0(params$maxyr, " monthly chlorophyll-a bay segment means (red dots) compared to monthly distributions from 1972-", params$maxyr -  1, " (box plots and black dots).  Boxes encompass the 25th and 75th percentiles, while whiskers bound the interquartile range. Dots beyond the whiskers represent outliers throughout the 1972-", params$maxyr -1, " sample period.")
-#| fig-height: 9
+#| fig-cap: !expr paste0(params$maxyr, " monthly chlorophyll-a bay segment means (red dots) compared to monthly distributions from prior years (box plots and black dots).  Prior years extend to 1975 for OTB, HB, MTB, and LTB, 1991 for BCBS, 1989 for TCB, and 1990 for MR. Boxes encompass the 25th and 75th percentiles, while whiskers bound the interquartile range. Dots beyond the whiskers represent outliers throughout the 1972-", params$maxyr -1, " sample period.")
+#| fig-height: 15
 #| fig-width: 12
 #| fig-align: center
-show_chlboxplot(wqdat, params$maxyr, fml)
+show_chlboxplot(chldat, params$maxyr, fml)
 ```
 
 ```{r}
@@ -80,29 +83,29 @@ show_seagrasscoverage(seagrass, maxyr = 2022, lastlab = 'acres')
 #| fig-width: 4
 #| fig-align: center
 #| out-width: "40%"
-show_chlmatrix(wqdat, params$maxyr, fml)
+# show_chlmatrix(wqdat, params$maxyr, fml)
 ```
 
 ```{r}
 #| label: tbl-raotb
 #| tbl-cap: !expr ratabcap('OTB')
-show_ratab(bay_segment = 'OTB', yrsel = params$maxyr, epcdata = wqdat)
+# show_ratab(bay_segment = 'OTB', yrsel = params$maxyr, epcdata = wqdat)
 ```
 
 ```{r}
 #| label: tbl-rahb
 #| tbl-cap: !expr ratabcap('HB')
-show_ratab(bay_segment = 'HB', yrsel = params$maxyr, epcdata = wqdat)
+# show_ratab(bay_segment = 'HB', yrsel = params$maxyr, epcdata = wqdat)
 ```
 
 ```{r}
 #| label: tbl-ramtb
 #| tbl-cap: !expr ratabcap('MTB')
-show_ratab(bay_segment = 'MTB', yrsel = params$maxyr, epcdata = wqdat)
+# show_ratab(bay_segment = 'MTB', yrsel = params$maxyr, epcdata = wqdat)
 ```
 
 ```{r}
 #| label: tbl-raltb
 #| tbl-cap: !expr ratabcap('LTB')
-show_ratab(bay_segment = 'LTB', yrsel = params$maxyr, epcdata = wqdat)
+# show_ratab(bay_segment = 'LTB', yrsel = params$maxyr, epcdata = wqdat)
 ```

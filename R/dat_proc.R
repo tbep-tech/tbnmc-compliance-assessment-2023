@@ -1,6 +1,10 @@
 library(tbeptools)
 library(here)
 library(dplyr)
+library(sf)
+library(lubridate)
+
+source(here('R/funcs.R'))
 
 # wq data -----------------------------------------------------------------
 
@@ -13,7 +17,9 @@ xlsx <- here::here('data/data-raw', 'Results_Provisional.xlsx')
 
 # import and download if new
 # wqdat <- read_importwq(xlsx, download_latest = T)
-epcdata <- read_importwq(xlsx, download_latest = F) %>% 
+epcdata <- read_importwq(xlsx, download_latest = F) 
+
+epcchl <- epcdata %>% 
   select(
     bay_segment, 
     station = epchc_station, 
@@ -30,137 +36,111 @@ epcdata <- read_importwq(xlsx, download_latest = F) %>%
   )
 
 ##
-# BCBS, TCB, and MR chlorophyll data 
+# BCBS, TCB, and MR chlorophyll data through 2021, reasonable assurance repo
 
-# data through 2021, in reasonable assurance repo
 # https://github.com/tbep-tech/reasonable-assurance-analysis/blob/main/R/dat_proc.R, line 27
 olddatraw <- rdataload('https://github.com/tbep-tech/reasonable-assurance-analysis/raw/main/data/chldat.RData')
 
 olddat <- olddatraw %>% 
-  filter(bay_segment %in% c('BCBS', 'TCB', 'MR'))
+  filter(bay_segment %in% c('BCBS', 'TCB', 'MR')) %>% 
+  select(-Level)
 
-# shapefile for bcbs spatial subset for pinellas data
-bcbsseg <- st_read(here('data-raw/tampabay_ra_seg_watersheds.shp')) %>% 
-  st_transform(crs = 4326) %>% 
+##
+# BCBS 
+
+# ra shapefile for bcbs spatial subset for pinellas data, includes areas W7 and parts of W6
+bcbsseg <- st_read(here('data/data-raw/tampabay_ra_seg_watersheds.shp')) %>%
+  st_transform(crs = 4326) %>%
   filter(BAY_SEGMEN == 5)
 
-mancodataraw <- read_importwqp(org = '21FLMANA_WQX', type = 'wq', trace = T)
-pincodataraw <- read_importwqp(org = '21FLPDEM_WQX', type = 'wq', trace = T)
-# bcbs
+# # pinco data on WQP is about a year behind the data on water atlas
+# pincodataraw <- read_importwqp(org = '21FLPDEM_WQX', type = 'wq', trace = T)
 
-# these are from S. Day, via email 9/6/22 for probabilistic
-bcbschlraw3 <- read_excel(here('data-raw/Pinellas Co Boca Ciega data .xlsx'), sheet = '2021')
+# from pinellas water atlas, https://pinellas.wateratlas.usf.edu/
+# search by waterbody id (all bcb, narrows)
+# chlorophyll only 
+# date range 2022 to present
+pinchlraw <- read.csv(here('data/data-raw/pinchl.txt'), sep = '\t')
 
-bcbschl3 <- bcbschlraw3 %>% 
+pinchl <- pinchlraw %>% 
+  filter(Parameter == 'Chla_ugl') %>% 
   select(
-    station = Site, 
-    SampleTime = Date, 
-    Latitude = Latitude, 
-    Longitude = Longitude, 
-    chla = `Chl-a`, 
-    chla_q = `Chla_q`, 
-    Level
+    station = StationID, 
+    SampleTime = SampleDate, 
+    Latitude = Actual_Latitude, 
+    Longitude = Actual_Longitude, 
+    chla = Result_Value, 
+    chla_q = QACode
   ) %>% 
   mutate(
     bay_segment = 'BCBS',
-    SampleTime = mdy(SampleTime), 
+    SampleTime = mdy_hms(SampleTime), 
     yr = year(SampleTime), 
     mo = month(SampleTime), 
     Latitude = as.numeric(Latitude), 
-    Longitude = -1 * as.numeric(Longitude)
+    Longitude = as.numeric(Longitude),
+    station = gsub('\\=', '', station)
   ) %>% 
   select(bay_segment, station, SampleTime, yr, mo, everything()) %>% 
   st_as_sf(coords = c('Longitude', 'Latitude'), crs = 4326, remove = F) %>% 
   .[bcbsseg, ] %>% 
   st_set_geometry(NULL)  
 
-bcbschl <- bcbschl3
+##
+# MR, TCB
 
-# TCB - from Manatee County Water Atlas and original NNC report data
-# data source/provider query is STORET_21FLMANA (legacy) and WIN_21FLMANATEE (new) 
+# # manco data on WQP is about a year behind the data on FDEP WIN
+# mancodataraw <- read_importwqp(org = '21FLMANA_WQX', type = 'wq', trace = T)
 
-# from water atlas
-manchlraw <- read.csv(here('data-raw/manchl.txt'), sep = '\t', header = T)
+# from FDEP WIN, via WAVES interface
+# https://prodenv.dep.state.fl.us/DearWin/public/wavesSearchFilter?calledBy=menu
+# org as 21FLMANA, stations as those below for MR, TCB
+# activity type as sample, sample-composite, field
+# media as water
+# date range as 2022 Jan 1 to 2023 Dec 31
+# dep analyte name as all chlorophyll analytes
+# according to GB, this is more updated than water atlas, which pulls from WIN
+# manco data goes to win within 1 month at end of each quarter
+manchlraw <- read.csv(here('data/data-raw/manchl.txt'), sep = '|', skip = 13)
 
-tcbchl1 <- manchlraw %>%
-  filter(WaterBodyName == 'Terra Ceia Bay') %>% 
-  filter(Parameter %in% c('Chla_ugl', 'ChlaC_ugl')) %>% 
+MR <- c('431', '433', '434', '532', '535', 'LM4')
+TCB <- c('395', '405', '408', '430')
+
+# win data did not include lat/lon
+locs <- olddat %>% 
+  filter(yr > 2020) %>% 
+  filter(bay_segment %in% c('MR', 'TCB')) %>%
+  select(bay_segment, station, Latitude, Longitude) %>%
+  distinct()
+
+manchl <- manchlraw %>%  
   select(
-    station = StationID, 
-    SampleTime = SampleDate, 
-    Latitude = Actual_Latitude, 
-    Longitude = Actual_Longitude, 
-    chla = Result_Value, 
-    chla_q = QACode
+    station = Monitoring.Location.ID, 
+    SampleTime = Activity.Start.Date.Time, 
+    chla = DEP.Result.Value.Number, 
+    chla_q = Value.Qualifier
   ) %>% 
+  distinct() %>% 
   mutate(
-    bay_segment = 'TCB',
-    station = gsub('^=', '', station), 
+    bay_segment = case_when(
+      station %in% MR ~ 'MR',
+      station %in% TCB ~ 'TCB'
+    ),
     SampleTime = mdy_hms(SampleTime), 
     yr = year(SampleTime), 
-    mo = month(SampleTime)
+    mo = month(SampleTime),
+    chla = as.numeric(chla)
   ) %>% 
-  filter(yr > 2010) %>% 
+  filter(!is.na(SampleTime)) %>% 
+  filter(yr > 2021) %>% 
+  left_join(locs, by = c('bay_segment', 'station')) %>%
   select(bay_segment, station, SampleTime, yr, mo, everything()) 
 
-tcbchl <- tcbchl1
-
-# MR - from Manatee County Water Atlas add MR and TCB data
-# data source/provider query is STORET_21FLMANA (legacy) and WIN_21FLMANATEE (new)
-
-# from water atlas (through June 2023 only)
-manchlraw <- read.csv(here('data/data-raw/manchl.txt'), sep = '\t', header = T)
-
-tcbchl1 <- manchlraw %>%
-  filter(WaterBodyName == 'Terra Ceia Bay') %>% 
-  filter(Parameter %in% c('Chla_ugl', 'ChlaC_ugl')) %>% 
-  select(
-    station = StationID, 
-    SampleTime = SampleDate, 
-    Latitude = Actual_Latitude, 
-    Longitude = Actual_Longitude, 
-    chla = Result_Value, 
-    chla_q = QACode
-  ) %>% 
-  mutate(
-    bay_segment = 'TCB',
-    station = gsub('^=', '', station), 
-    SampleTime = mdy_hms(SampleTime), 
-    yr = year(SampleTime), 
-    mo = month(SampleTime)
-  ) %>% 
-  filter(yr > 2010) %>% 
-  select(bay_segment, station, SampleTime, yr, mo, everything()) 
-
-# water atlas  
-mrchl1 <- manchlraw %>% 
-  filter(WaterBodyName == 'Manatee River Estuary') %>% 
-  filter(Parameter %in% c('Chla_ugl', 'ChlaC_ugl')) %>% 
-  select(
-    station = StationID, 
-    SampleTime = SampleDate, 
-    Latitude = Actual_Latitude, 
-    Longitude = Actual_Longitude, 
-    chla = Result_Value, 
-    chla_q = QACode
-  ) %>% 
-  mutate(
-    bay_segment = 'MR',
-    station = gsub('^=', '', station), 
-    SampleTime = mdy_hms(SampleTime), 
-    yr = year(SampleTime), 
-    mo = month(SampleTime)
-  ) %>% 
-  select(bay_segment, station, SampleTime, yr, mo, everything()) %>% 
-  filter(yr > 2021) 
-
-mrchl <- mrchl1
-
+##
 # combine all
-chldat <- epcdata %>% 
+chldat <- epcchl %>% 
   bind_rows(olddat) %>% 
-  bind_rows(bcbschl) %>% 
-  bind_rows(tcbchl) %>% 
-  bind_rows(mrchl)
+  bind_rows(pinchl) %>% 
+  bind_rows(manchl)
 
 save(chldat, file = here('data/chldat.RData'))

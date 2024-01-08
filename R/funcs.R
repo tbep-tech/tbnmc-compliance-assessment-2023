@@ -154,7 +154,6 @@ hydrotab <- function(maxyr, noaa_key, fsz = 13){
 show_rathrplot <- function(datin, bay_segment = c('OTB', 'HB', 'MTB', 'LTB', 'BCBS', 'TCB', 'MR'), thr = c('chla', 'la'), trgs = NULL, yrrng = c(1975, 2019),
                            family = NA, labelexp = TRUE, txtlab = TRUE, thrs = FALSE, partialyr = FALSE){
   
-  
   maxyr <- yrrng[2]
   
   # default targets from data file
@@ -175,13 +174,12 @@ show_rathrplot <- function(datin, bay_segment = c('OTB', 'HB', 'MTB', 'LTB', 'BC
   cols <- c("Annual Mean"="red", "Management Target"="blue", "+1 se (small exceedance)"="blue", "+2 se (large exceedance)"="blue")
   
   # averages
-  aves <- raanlz_avedat(datin, partialyr = partialyr)
+  aves <- anlz_raavedat(datin, partialyr = partialyr)
   
   # axis label
   if(labelexp)
-    axlab <- dplyr::case_when(
-      thr == 'chla' ~ expression("Mean Ann. Chl-a ("~ mu * "g\u00B7L"^-1 *")")
-    )
+    axlab <- ifelse(thr == 'chla', expression("Mean Ann. Chl-a ("~ mu * "g\u00B7L"^-1 *")"),
+                    ifelse(thr == 'la', expression("Mean Ann. Light Att. (m  " ^-1 *")"), NA))
   if(!labelexp)
     axlab <- dplyr::case_when(
       thr == 'chla' ~ "Mean Ann. Chl-a (ug/L)"
@@ -228,9 +226,9 @@ show_rathrplot <- function(datin, bay_segment = c('OTB', 'HB', 'MTB', 'LTB', 'BC
     tidyr::spread(var, val)
   
   p <- ggplot(toplo) +
-    geom_rect(xmin = 2017, xmax = 2021, ymin = -Inf, ymax = Inf, fill = 'grey', alpha = 0.6) + 
+    geom_rect(xmin = 2022, xmax = maxyr, ymin = -Inf, ymax = Inf, fill = 'grey', alpha = 0.6) + 
     geom_point(data = toplo, aes(x = yr, y = yval, colour = "Annual Mean"), size = 3) +
-    geom_line(data = toplo, aes(x = yr, y = yval, colour = "Annual Mean"), linetype = 'solid', size = 0.75) +
+    geom_line(data = toplo, aes(x = yr, y = yval, colour = "Annual Mean"), linetype = 'solid', linewidth = 0.75) +
     labs(y = axlab, title = ttl) +
     scale_x_continuous(breaks = seq(1975, maxyr, by = 5)) +
     theme(panel.grid.minor=element_blank(),
@@ -297,8 +295,9 @@ show_rathrplot <- function(datin, bay_segment = c('OTB', 'HB', 'MTB', 'LTB', 'BC
 
 # annual chlorophyll figure
 show_rachlplot <- function(chldat, maxyr, fml){
-
+  
   yrrng <- c(1975, maxyr)
+  
   p1 <- show_rathrplot(chldat, bay_segment = "OTB", thr = "chla", yrrng = yrrng, family = fml, thrs = T)
   p2 <- show_rathrplot(chldat, bay_segment = "HB", thr = "chla", yrrng = yrrng, family = fml, thrs = T)
   p3 <- show_rathrplot(chldat, bay_segment = "MTB", thr = "chla", yrrng = yrrng, family = fml, thrs = T)
@@ -307,14 +306,130 @@ show_rachlplot <- function(chldat, maxyr, fml){
   p6 <- show_rathrplot(chldat, bay_segment = "TCB", thr = "chla", yrrng = yrrng, thrs = T)
   p7 <- show_rathrplot(chldat, bay_segment = "MR", thr = "chla", yrrng = yrrng, thrs = T) 
   
-  p <- (guide_area() / (p1 + p2 + p3 + p4 + p5 + p6 + p7)) + plot_layout(ncol = 1, guides = 'collect', heights = unit(c(1, 1), c("cm", "null")))
+  p <- (guide_area() / (p1 + p2 + p3 + p4 + p5 + p6 + p7 + plot_layout(ncol = 2))) + plot_layout(ncol = 1, guides = 'collect', heights = unit(c(1, 1), c("cm", "null")))
   
   return(p)
 
 }
 
+anlz_raavedat <- function(datin, partialyr = FALSE){
+  
+  # year month averages
+  # long format, separate bay_segment for MTB into sub segs
+  # mtb year month averages are weighted
+  moout <- datin %>%
+    dplyr::select(yr, mo, bay_segment, station, chla) %>%
+    tidyr::gather('var', 'val', chla) %>%
+    tidyr::drop_na() %>%
+    dplyr::mutate(
+      bay_segment = dplyr::case_when(
+        station %in% c(9, 11, 81, 84) ~ "MT1",
+        station %in% c(13, 14, 32, 33) ~ "MT2",
+        station %in% c(16, 19, 28, 82) ~ "MT3",
+        TRUE ~ bay_segment
+      )
+    ) %>%
+    dplyr::group_by(bay_segment, yr, mo, var) %>%
+    dplyr::summarise(val = mean(val), .groups = 'drop') %>%
+    drop_na() %>%
+    dplyr::mutate(
+      val = dplyr::case_when(
+        bay_segment %in% "MT1" ~ val * 2108.7,
+        bay_segment %in% "MT2" ~ val * 1041.9,
+        bay_segment %in% "MT3" ~ val * 974.6,
+        TRUE ~ val
+      ),
+      bay_segment = dplyr::case_when(
+        bay_segment %in% c('MT1', 'MT2', 'MT3') ~ 'MTB',
+        TRUE ~ bay_segment
+      )
+    ) %>%
+    dplyr::group_by(bay_segment, yr, mo, var) %>%
+    dplyr::summarise(
+      val = sum(val), 
+      .groups = 'drop'
+    ) %>%
+    dplyr::mutate(
+      val = dplyr::case_when(
+        bay_segment %in% 'MTB' ~ val / 4125.2,
+        TRUE ~ val
+      )
+    ) %>%
+    dplyr::filter(!is.na(val)) %>%
+    dplyr::filter(!is.infinite(val)) %>%
+    dplyr::arrange(var, yr, mo, bay_segment)
+  
+  # add partial year
+  if(partialyr){
+    
+    # years to averge, last five complete
+    maxyr <- max(moout$yr)
+    yrfl <- c(maxyr - 5, maxyr - 1)
+    
+    # months to fill
+    mofl <- moout %>%
+      dplyr::filter(yr %in% maxyr) %>%
+      dplyr::pull(mo) %>%
+      unique %>%
+      setdiff(1:12, .)
+    
+    # month averages
+    moave <- moout %>%
+      dplyr::filter(yr >= yrfl[1] & yr <= yrfl[2]) %>%
+      dplyr::group_by(bay_segment, mo, var) %>%
+      summarise(
+        val = mean(val, na.rm = TRUE), 
+        .groups = 'drop'
+      ) %>%
+      dplyr::filter(mo %in% mofl) %>%
+      dplyr::mutate(yr = maxyr)
+    
+    # join missing months to
+    moout <- moout %>%
+      dplyr::bind_rows(moave) %>%
+      dplyr::arrange(var, yr, mo, bay_segment)
+    
+  }
+  
+  # annual data
+  anout <- moout %>%
+    dplyr::group_by(yr, bay_segment, var) %>%
+    dplyr::summarise(
+      val = mean(val), 
+      .groups = 'drop'
+    ) %>%
+    dplyr::mutate(
+      var = dplyr::case_when(
+        var == 'chla' ~ 'mean_chla',
+        TRUE ~ var
+      )
+    ) %>%
+    tidyr::spread('var', 'val') %>%
+    tidyr::gather('var', 'val', mean_chla) %>%
+    dplyr::filter(!is.na(val)) %>%
+    dplyr::filter(!is.infinite(val)) %>%
+    dplyr::arrange(var, yr, bay_segment)
+  
+  # mo dat to light attenuation
+  moout <- moout %>%
+    dplyr::mutate(
+      var = dplyr::case_when(
+        var == 'chla' ~ 'mean_chla'
+      )
+    )
+  
+  # combine all
+  out <- list(
+    ann = anout,
+    mos = moout
+  )
+  
+  return(out)
+  
+}
+
 # chlorophyll boxplots all segments
-show_chlboxplot <- function(wqdat, maxyr, fml){
+show_chlboxplot <- function(chldat, maxyr, fml){
 
   yrrng <- c(1975, maxyr)
   txtcol <- 'black'
@@ -329,12 +444,15 @@ show_chlboxplot <- function(wqdat, maxyr, fml){
     legend.position = 'top'
   )
 
-  p1 <- show_boxplot(wqdat, bay_segment = "OTB", yrrng = yrrng, yrsel = maxyr, family = fml)
-  p2 <- show_boxplot(wqdat, bay_segment = "HB", yrrng = yrrng, yrsel = maxyr, family = fml)
-  p3 <- show_boxplot(wqdat, bay_segment = "MTB", yrrng = yrrng, yrsel = maxyr, family = fml)
-  p4 <- show_boxplot(wqdat, bay_segment = "LTB",  yrrng = yrrng, yrsel = maxyr, family = fml)
+  p1 <- show_raboxplot(chldat, bay_segment = "OTB", yrrng = yrrng, yrsel = maxyr, family = fml)
+  p2 <- show_raboxplot(chldat, bay_segment = "HB", yrrng = yrrng, yrsel = maxyr, family = fml)
+  p3 <- show_raboxplot(chldat, bay_segment = "MTB", yrrng = yrrng, yrsel = maxyr, family = fml)
+  p4 <- show_raboxplot(chldat, bay_segment = "LTB",  yrrng = yrrng, yrsel = maxyr, family = fml)
+  p5 <- show_raboxplot(chldat, bay_segment = "BCBS", yrrng = yrrng, yrsel = maxyr, family = fml)
+  p6 <- show_raboxplot(chldat, bay_segment = "TCB", yrrng = yrrng, yrsel = maxyr, family = fml)
+  p7 <- show_raboxplot(chldat, bay_segment = "MR", yrrng = yrrng, yrsel = maxyr, family = fml)
 
-  p <- (guide_area() / (p1 + p2 + p3 + p4)) + plot_layout(ncol = 1, guides = 'collect', heights = unit(c(1, 1), c("cm", "null"))) & thrthm
+  p <- (guide_area() / (p1 + p2 + p3 + p4 + p5 + p6 + p7 + plot_layout(ncol = 2))) + plot_layout(ncol = 1, guides = 'collect', heights = unit(c(1, 1), c("cm", "null"))) & thrthm
   
   return(p)
 
@@ -355,6 +473,384 @@ show_chlmatrix <- function(wqdat, maxyr, fml){
 
   return(out)
 
+}
+
+show_rasitemap <- function(chldat, yrsel, mosel = c(1, 12), param = c('chla', 'la'), trgs = NULL, thrs = FALSE, partialyr = FALSE){
+  
+  # sanity check
+  # default targets from data file
+  if(is.null(trgs))
+    trgs <- targets
+  
+  # correct month entry
+  if(any(!mosel %in% 1:12))
+    stop('mosel not in range of 1 to 12')
+  if(length(mosel) == 2)
+    if(mosel[2] < mosel[1])
+      stop('mosel must be in ascending order')
+  if(length(mosel) > 2 )
+    stop('mosel must be length 1 or 2')
+  
+  # parameter
+  param <- match.arg(param)
+  
+  # logical if full year
+  fullyr <- sum(c(1, 12) %in% mosel) == 2
+  
+  prj <- '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs'
+  
+  # site averages
+  tomap <- chldat %>%
+    anlz_raavedatsite(partialyr = partialyr)
+
+  # get site averages for selected year
+  if(fullyr){
+    
+    tomap <- tomap %>%
+      anlz_attainsite(yrrng = yrsel, thr = param, trgs = trgs, thrs = thrs) %>%
+      dplyr::mutate(
+        met = factor(met, levels = c('yes', 'no'), labels = c('yes', 'no'))
+      )
+    
+    # legend label
+    leglab <- paste0('Target met\nin ', yrsel, '?')
+    if(thrs)
+      leglab <- paste0('Below\nthreshold\nin ', yrsel, '?')
+    
+  }
+  
+  # get monthly average range if not complete year
+  if(!fullyr){
+    
+    mos <- mosel
+    if(length(mosel) == 2)
+      mos <- seq(mosel[1], mosel[2])
+    
+    # tomap
+    tomap <- tomap[['mos']] %>%
+      dplyr::filter(yr %in% yrsel) %>%
+      dplyr::filter(mo %in% !!mos) %>%
+      dplyr::filter(grepl(paste0('_', param, '$'), var)) %>%
+      dplyr::group_by(bay_segment, station, yr) %>%
+      dplyr::summarize(val = mean(val, na.rm = TRUE), .groups = 'drop')
+    
+    molabs <- paste(month.abb[mosel], collapse = '-')
+    
+    # legend label
+    leglab <- dplyr::case_when(
+      param == 'chla' ~ "Chl-a ~ (mu * g%.% L^-1)",
+      param == 'la' ~ "Light ~ Att. ~(m^-1)"
+    )
+    
+  }
+  
+  # lat/long
+  locs <- chldat %>% 
+    select(station, bay_segment, Latitude, Longitude) %>% 
+    summarise(
+      Latitude = mean(Latitude, na.rm = TRUE),
+      Longitude = mean(Longitude, na.rm = TRUE), 
+      .by = c('station', 'bay_segment')
+    )
+  
+  # add station lat/lon
+  tomap <- tomap %>%
+    dplyr::left_join(locs, by = c('station', 'bay_segment')) %>%
+    st_as_sf(coords = c('Longitude', 'Latitude'), crs = prj)
+
+  # segment labels
+  seglabs <- data.frame(
+    Longitude = c(-82.7, -82.64, -82.58, -82.42, -82.73, -82.5, -82.53),
+    Latitude = c(27.54, 27.81, 28, 27.925, 27.7, 27.5, 27.57),
+    bay_segment = c('LTB', 'MTB', 'OTB', 'HB', 'BCBS', 'MR', 'TCB')
+  ) %>%
+    st_as_sf(coords = c('Longitude', 'Latitude'), crs = prj)
+  
+  transcol <- rgb(1, 1, 1, 0.5)
+  
+  if(!requireNamespace('ggspatial', quietly = TRUE))
+    stop("Package \"ggspatial\" needed for this function to work. Please install it.", call. = FALSE)
+  
+  if(!requireNamespace('ggrepel', quietly = TRUE))
+    stop("Package \"ggrepel\" needed for this function to work. Please install it.", call. = FALSE)
+  
+  p <- ggplot() +
+    annotation_map_tile(zoom = 11, type = 'cartolight', cachedir = system.file("rosm.cache", package = "ggspatial")) + 
+    annotation_scale(location = 'bl', text_cex = 1.5,) +
+    geom_sf(data = tbseglines, colour = 'black', inherit.aes = F, size = 1) +
+    geom_text_repel(data = tomap, aes(label = round(val, 1), geometry = geometry), stat = "sf_coordinates", size = 3, inherit.aes = F) +
+    geom_label(data = seglabs, aes(label = bay_segment, geometry = geometry), stat = "sf_coordinates", inherit.aes = F, fill = transcol)
+  
+  if(fullyr){
+    
+    # plot, this kills the message about coordinate systems
+    suppressMessages({
+      
+      p <- p +
+        geom_sf(data = tomap, aes(colour = met, fill = met), colour = 'black', inherit.aes = F, size = 3, pch = 21) +
+        scale_fill_manual(leglab, values = c('#2DC938', '#CC3231'), drop = F) +
+        scale_colour_manual(leglab, values = c('#2DC938', '#CC3231'), drop = F) +
+        theme(
+          axis.title = element_blank(),
+          axis.text = element_text(size = 7),
+          legend.position = c(0.85, 0.3),
+          legend.background = element_blank()
+        ) +
+        guides(
+          colour = guide_legend(override.aes = list(colour = c('#2DC938', '#CC3231'))),
+          fill = guide_legend(override.aes = list(colour = c('#2DC938', '#CC3231')))
+        )
+      
+    })
+    
+    if(partialyr){
+      
+      leglab <- paste0(leglab, '*')
+      p <- p +
+        labs(caption = paste0('*Incomplete data for ', yrsel, ' estimated by five year average'))
+      
+    }
+    
+  }
+  
+  if(!fullyr){
+    
+    # plot, this kills the message about coordinate systems
+    suppressMessages({
+      
+      p <- p +
+        geom_sf(data = tomap, aes(fill = val), colour = 'black', inherit.aes = F, size = 3, pch = 21) +
+        scale_fill_gradient(parse(text = leglab), low = '#2DC938', high = '#CC3231') + #green, red
+        theme(
+          axis.title = element_blank(),
+          axis.text = element_text(size = 7),
+          legend.background = element_blank()
+        ) +
+        labs(subtitle = paste(molabs, yrsel))
+      
+    })
+    
+  }
+  
+  suppressWarnings(print(p))
+  
+}
+
+show_raboxplot <- function(chldat, param = c('chla', 'la'),  yrsel = NULL, yrrng = c(1975, 2022), ptsz = 0.5, bay_segment = c('OTB', 'HB', 'MTB', 'LTB', 'BCBS', 'TCB', 'MR'),
+                         trgs = NULL, family = NA, labelexp = TRUE, txtlab = TRUE, partialyr = FALSE){
+  
+  # parameter
+  param <- match.arg(param)
+  
+  # segment
+  bay_segment <- match.arg(bay_segment)
+  
+  # default targets from data file
+  if(is.null(trgs))
+    trgs <- targets
+  
+  # select curyr as max of yrrng if null
+  if(is.null(yrsel))
+    yrsel <- max(yrrng)
+  
+  # monthly averages
+  aves <- anlz_raavedat(chldat, partialyr = partialyr) %>%
+    .$'mos' %>%
+    dplyr::filter(var %in% !!paste0('mean_', param)) %>%
+    dplyr::filter(bay_segment == !!bay_segment) %>%
+    dplyr::mutate(
+      var = 'yval',
+      mo = month(mo, label = T)
+    )
+  
+  # create month labels for x axis, asterisks if partialyr is true
+  if(partialyr){
+    
+    # missing months of selected year
+    mismo <- chldat %>%
+      filter(yr == !!yrsel) %>%
+      anlz_avedat(partialyr = FALSE) %>%
+      .[['mos']] %>%
+      dplyr::select(mo) %>%
+      unique() %>%
+      pull(mo) %>%
+      setdiff(1:12, .)
+    molab <- levels(aves$mo)
+    molab[mismo] <- paste0(molab[mismo], '*')
+    
+  }
+  
+  # yrrng must be in ascending order
+  if(yrrng[1] >= yrrng[2])
+    stop('yrrng argument must be in ascending order, e.g., c(1975, 2018)')
+
+  # yrrng not in chldat
+  if(any(!yrrng %in% aves$yr))
+    yrrng[1] <- min(aves$yr, na.rm = TRUE)
+
+  # yrsel not in chldat
+  if(!yrsel %in% chldat$yr)
+    stop(paste('Check yrsel is within', paste(range(chldat$yr, na.rm = TRUE), collapse = '-')))
+  
+  # get lines to plot
+  thrnum <- trgs %>%
+    dplyr::filter(bay_segment %in% !!bay_segment) %>%
+    dplyr::pull(!!paste0(param, '_thresh'))
+  
+  # axis label
+  if(labelexp)
+    axlab <- ifelse(param == 'chla', expression("Mean Annual Chlorophyll-a ("~ mu * "g\u00B7L"^-1 *")"),
+                    ifelse(param == 'la', expression("Mean Annual Light Attenuation (m  " ^-1 *")"), NA))
+  if(!labelexp)
+    axlab <- dplyr::case_when(
+      param == 'chla' ~ "Mean Annual Chlorophyll-a (ug/L)",
+      param == 'la' ~ "Mean Annual Light Attenuation (m-1)"
+    )
+  
+  # parameshold label
+  if(labelexp)
+    trglab <- dplyr::case_when(
+      param == 'chla' ~ paste(thrnum, "~ mu * g%.%L^{-1}"),
+      param == 'la' ~ paste(thrnum, "~m","^{-1}")
+    )
+  if(!labelexp)
+    trglab <- dplyr::case_when(
+      param == 'chla' ~ paste(thrnum, "ug/L"),
+      param == 'la' ~ paste(thrnum, "m-1")
+    )
+  
+  # bay segment plot title
+  ttl <- trgs %>%
+    dplyr::filter(bay_segment %in% !!bay_segment) %>%
+    dplyr::pull(name)
+  
+  # toplo1 is all but current year
+  toplo1 <- aves %>%
+    dplyr::filter(yr >= yrrng[1] & yr <= yrrng[2]) %>%
+    dplyr::filter(!yr %in% yrsel)
+  
+  # toplo2 is current year
+  toplo2 <- aves %>%
+    dplyr::filter(yr %in% yrsel)
+  
+  # colors and legend names
+  cols <- c("black", "red")
+  names(cols) <- c('prior years', as.character(yrsel))
+  
+  p <- ggplot() +
+    geom_boxplot(data = toplo1, aes(x = mo, y = val, colour = names(cols)[1]), outlier.colour = NA) +
+    geom_point(data = toplo1, aes(x = mo, y = val, group = yr, colour = names(cols)[1]), position = position_jitter(width = 0.2), size = ptsz) +
+    geom_point(data = toplo2, aes(x = mo, y = val, group = yr, fill = names(cols)[2]), pch = 21, color = cols[2], size = 3, alpha = 0.7) +
+    geom_hline(aes(yintercept = thrnum, linetype = '+2 se (large exceedance)'), colour = 'blue') +
+    labs(y = axlab, title = ttl) +
+    theme_grey(base_family = family) +
+    theme(axis.title.x = element_blank(),
+          panel.grid.minor=element_blank(),
+          panel.grid.major=element_blank(),
+          panel.background = element_rect(fill = '#ECECEC'),
+          legend.position = 'top',#c(0.85, 0.95),
+          legend.background = element_rect(fill=NA),
+          legend.key = element_rect(fill = '#ECECEC'),
+          legend.title = element_blank(),
+          axis.text.x = element_text(angle = 45, size = 8, hjust = 1)
+    ) +
+    scale_colour_manual(values = cols[1]) +
+    scale_fill_manual(values = cols[2]) +
+    scale_linetype_manual(values = 'dotted') +
+    guides(linetype = guide_legend(override.aes = list(colour = 'blue')))
+  
+  if(txtlab)
+    p <- p +
+    geom_text(aes(x = factor('Jan'), max(aves$val)), parse = labelexp, label = trglab, hjust = 0.2, vjust = 1, colour = 'blue', family = family)
+  
+  if(partialyr)
+    p <- p +
+    scale_x_discrete(labels = molab) +
+    labs(caption = paste0('*Missing data estimated by five year average from ', yrsel))
+  
+  return(p)
+  
+}
+
+anlz_raavedatsite <- function(chldat, partialyr = FALSE){
+  
+  # year month averages
+  # long format, separate bay_segment for MTB into sub segs
+  # mtb year month averages are weighted
+  moout <- chldat %>%
+    dplyr::select(yr, mo, bay_segment, station, chla) %>%
+    tidyr::gather('var', 'val', chla) %>%
+    tidyr::drop_na() %>%
+    dplyr::group_by(bay_segment, station, yr, mo, var) %>%
+    dplyr::summarise(val = mean(val)) %>%
+    dplyr::ungroup() %>%
+    dplyr::filter(!is.na(val)) %>%
+    dplyr::filter(!is.infinite(val)) %>%
+    dplyr::arrange(var, yr, mo, bay_segment)
+  
+  # add partial year
+  if(partialyr){
+    
+    # years to averge, last five complete
+    maxyr <- max(moout$yr)
+    yrfl <- c(maxyr - 5, maxyr - 1)
+    
+    # months to fill
+    mofl <- moout %>%
+      dplyr::filter(yr %in% maxyr) %>%
+      dplyr::pull(mo) %>%
+      unique %>%
+      setdiff(1:12, .)
+    
+    # month averages
+    moave <- moout %>%
+      dplyr::filter(yr >= yrfl[1] & yr <= yrfl[2]) %>%
+      dplyr::group_by(bay_segment, station, mo, var) %>%
+      summarise(val = mean(val, na.rm = TRUE)) %>%
+      dplyr::filter(mo %in% mofl) %>%
+      dplyr::mutate(yr = maxyr)
+    
+    # join missing months to
+    moout <- moout %>%
+      dplyr::bind_rows(moave) %>%
+      dplyr::arrange(var, yr, mo, bay_segment)
+    
+  }
+  
+  # annual data
+  anout <- moout %>%
+    dplyr::group_by(yr, bay_segment, station, var) %>%
+    dplyr::summarise(val = mean(val)) %>%
+    dplyr::ungroup() %>%
+    dplyr::mutate(
+      var = dplyr::case_when(
+        var == 'chla' ~ 'mean_chla',
+        TRUE ~ var
+      )
+    ) %>%
+    tidyr::spread('var', 'val') %>%
+    tidyr::gather('var', 'val', mean_chla) %>%
+    dplyr::filter(!is.na(val)) %>%
+    dplyr::filter(!is.infinite(val)) %>%
+    dplyr::arrange(var, yr, bay_segment)
+  
+  # mo dat to light attenuation
+  moout <- moout %>%
+    dplyr::mutate(
+      var = dplyr::case_when(
+        var == 'chla' ~ 'mean_chla',
+        T ~ var
+      )
+    )
+  
+  # combine all
+  out <- list(
+    ann = anout,
+    mos = moout
+  )
+  
+  return(out)
+  
 }
 
 # get rdata from github
