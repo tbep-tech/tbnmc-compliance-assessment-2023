@@ -669,7 +669,7 @@ show_raboxplot <- function(chldat, param = c('chla', 'la'),  yrsel = NULL, yrrng
     # missing months of selected year
     mismo <- chldat %>%
       filter(yr == !!yrsel) %>%
-      anlz_avedat(partialyr = FALSE) %>%
+      anlz_raavedat(partialyr = FALSE) %>%
       .[['mos']] %>%
       dplyr::select(mo) %>%
       unique() %>%

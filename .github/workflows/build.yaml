@@ -38,10 +38,11 @@ jobs:
             any::patchwork
             any::here
             any::rmarkdown
-            any::ggmap
             any::ggrepel
             any::knitr
             any::ftExtra
+            any::ggspatial
+            any::prettymapr
             tbeptools
       - name: Publish to GitHub Pages (and render)
         uses: quarto-dev/quarto-actions/publish@v2
