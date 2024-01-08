@@ -96,7 +96,7 @@ show_seagrasscoverage(seagrass, maxyr = 2022, lastlab = 'acres')
 #| fig-width: 4
 #| fig-align: center
 #| out-width: "40%"
-show_chlmatrix(chldat, params$maxyr, fml)
+show_chlmatrix(chldatmod, params$maxyr, fml)
 ```
 
 ```{r}
