@@ -23,8 +23,8 @@ fml <- NA
 
 data(chldat)
 
-# for ra tables, must conform to tbeptools format
-chldattab <- chldat %>% 
+# for matrix and ra tables, must conform to tbeptools format
+chldatmod <- chldat %>% 
   rename(
     epchc_station = station
   ) %>% 
@@ -96,29 +96,35 @@ show_seagrasscoverage(seagrass, maxyr = 2022, lastlab = 'acres')
 #| fig-width: 4
 #| fig-align: center
 #| out-width: "40%"
-# show_chlmatrix(chldat, params$maxyr, fml)
+show_chlmatrix(chldat, params$maxyr, fml)
 ```
 
 ```{r}
 #| label: tbl-raotb
 #| tbl-cap: !expr ratabcap('OTB')
-show_ratab(bay_segment = 'OTB', yrsel = params$maxyr, epcdata = chldattab)
+show_ratab(bay_segment = 'OTB', yrsel = params$maxyr, epcdata = chldatmod)
 ```
 
 ```{r}
 #| label: tbl-rahb
 #| tbl-cap: !expr ratabcap('HB')
-show_ratab(bay_segment = 'HB', yrsel = params$maxyr, epcdata = chldattab)
+show_ratab(bay_segment = 'HB', yrsel = params$maxyr, epcdata = chldatmod)
 ```
 
 ```{r}
 #| label: tbl-ramtb
 #| tbl-cap: !expr ratabcap('MTB')
-show_ratab(bay_segment = 'MTB', yrsel = params$maxyr, epcdata = chldattab)
+show_ratab(bay_segment = 'MTB', yrsel = params$maxyr, epcdata = chldatmod)
+```
+
+```{r}
+#| label: tbl-raltb
+#| tbl-cap: !expr ratabcap('LTB')
+show_ratab(bay_segment = 'LTB', yrsel = params$maxyr, epcdata = chldatmod)
 ```
 
 ```{r}
 #| label: tbl-raraltb
 #| tbl-cap: !expr ratabcap('RALTB')
-show_ratab(bay_segment = 'RALTB', yrsel = params$maxyr, epcdata = chldattab)
+show_ratab(bay_segment = 'RALTB', yrsel = params$maxyr, epcdata = chldatmod)
 ```

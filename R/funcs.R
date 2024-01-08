@@ -461,9 +461,10 @@ show_chlboxplot <- function(chldat, maxyr, fml){
 # chloropyll matrix
 show_chlmatrix <- function(wqdat, maxyr, fml){
 
-  out <- show_wqmatrix(wqdat, param = 'chla', yrrng = c(1975, maxyr), txtsz = 5, abbrev = T, family = fml) +
+  out <- show_rawqmatrix(wqdat, param = 'chla', yrrng = c(1975, maxyr), txtsz = 5, abbrev = T, family = fml) +
     geom_hline(yintercept = 2021.5, size = 2, color = 'grey') +
     theme(
+      panel.grid = element_blank(),
       plot.background = element_rect(fill = NA, color = NA),
       axis.text.y = element_text(size = 14, colour = 'black'),
       axis.text.x = element_text(size = 14, colour = 'black'),
@@ -850,6 +851,123 @@ anlz_raavedatsite <- function(chldat, partialyr = FALSE){
   )
   
   return(out)
+  
+}
+
+show_rawqmatrix <- function(epcdata, param = c('chla', 'la'), txtsz = 3, trgs = NULL, yrrng = c(1975, 2022), bay_segment = c('OTB', 'HB', 'MTB', 'LTB', 'RALTB'),
+                          asreact = FALSE, nrows = 10, abbrev = FALSE, family = NA, plotly = FALSE, partialyr = FALSE, width = NULL,
+                          height = NULL){
+  
+  # sanity checks
+  param <- match.arg(param)
+  
+  # default targets from data file
+  if(is.null(trgs))
+    trgs <- targets
+  
+  # process data to plot
+  avedat <- anlz_avedat(epcdata, partialyr = partialyr) %>%
+    .$ann
+  toplo <- avedat %>%
+    dplyr::filter(yr >= yrrng[1] & yr <= yrrng[2]) %>%
+    dplyr::filter(bay_segment %in% !!bay_segment) %>%
+    dplyr::filter(var %in% !!paste0('mean_', param)) %>%
+    dplyr::filter(!(bay_segment %in% c('RALTB') & yr < 1991)) %>% 
+    dplyr::left_join(trgs, by = 'bay_segment') %>%
+    dplyr::select(bay_segment, yr, var, val, thresh = !!paste0(param, '_thresh')) %>%
+    dplyr::mutate(
+      bay_segment = factor(bay_segment, levels = c('OTB', 'HB', 'MTB', 'LTB', 'RALTB')),
+      outcome = dplyr::case_when(
+        val < thresh ~ 'green',
+        val >= thresh ~ 'red'
+      )
+    )
+  
+  if(abbrev)
+    toplo <- toplo %>%
+    dplyr::mutate(
+      outcometxt = dplyr::case_when(
+        outcome == 'red' ~ 'R',
+        outcome == 'green' ~ 'G'
+      )
+    )
+  if(!abbrev)
+    toplo <- toplo %>%
+    dplyr::mutate(
+      outcometxt = outcome
+    )
+  
+  
+  # reactable object
+  if(asreact){
+    
+    totab <- toplo %>%
+      dplyr::select(bay_segment, yr, outcometxt) %>%
+      tidyr::spread(bay_segment, outcometxt)
+    
+    colfun <- function(x){
+      
+      out <- dplyr::case_when(
+        x %in% c('R', 'red') ~ '#FF3333',
+        x %in% c('G', 'green') ~ '#33FF3B'
+      )
+      
+      return(out)
+      
+    }
+    
+    # make reactable
+    out <- show_reactable(totab, colfun, nrows = nrows, txtsz = txtsz)
+    
+    return(out)
+    
+  }
+  
+  # add descriptive labels, Result
+  lbs <- dplyr::tibble(
+    outcome = c('red', 'green'),
+    Result = c('Above', 'Below')
+  )
+  if(param == 'chla')
+    rndval <- 1
+  if(param == 'la')
+    rndval <- 2
+  toplo <- toplo %>%
+    dplyr::left_join(lbs, by = 'outcome') %>%
+    dplyr::mutate(
+      val = paste0('Average: ', round(val, rndval)),
+      thresh = paste0('Threshold: ', round(thresh, rndval))
+    ) %>%
+    tidyr::unite(segval, c('val', 'thresh'), sep = ', ') %>%
+    dplyr::mutate(
+      segval = paste0('(', segval, ')')
+    ) %>%
+    unite(Result, c('Result', 'segval'), sep = ' ')
+  
+  # ggplot
+  p <- ggplot(toplo, aes(x = bay_segment, y = yr, fill = outcome)) +
+    geom_tile(aes(group = Result), colour = 'black') +
+    scale_y_reverse(expand = c(0, 0), breaks = toplo$yr) +
+    scale_x_discrete(expand = c(0, 0), position = 'top') +
+    scale_fill_manual(values = c(red = '#CC3231', green = '#2DC938')) +
+    theme_bw() +
+    theme(
+      axis.title = element_blank(),
+      legend.position = 'none'
+    )
+  
+  if(!is.null(txtsz))
+    p <- p +
+    geom_text(aes(label = outcometxt), size = txtsz, family = family)
+  
+  if(partialyr)
+    p <- p +
+    labs(caption = paste0('*Incomplete data for ', max(yrrng), ' estimated\nby five year average'))
+  
+  if(plotly)
+    p <- show_matrixplotly(p, family = family, tooltip = 'Result', width = width, height = height)
+  
+  return(p)
   
 }
 
