@@ -576,7 +576,7 @@ show_rasitemap <- function(chldat, yrsel, mosel = c(1, 12), param = c('chla', 'l
     stop("Package \"ggrepel\" needed for this function to work. Please install it.", call. = FALSE)
   
   p <- ggplot() +
-    annotation_map_tile(zoom = 11, type = 'cartolight', cachedir = system.file("rosm.cache", package = "ggspatial")) + 
+    annotation_map_tile(zoom = 11, type = 'cartolight', cachedir = system.file("rosm.cache", package = "ggspatial"), progress = 'none') + 
     annotation_scale(location = 'bl', text_cex = 1.5,) +
     geom_sf(data = tbseglines, colour = 'black', inherit.aes = F, size = 1) +
     geom_text_repel(data = tomap, aes(label = round(val, 1), geometry = geometry), stat = "sf_coordinates", size = 3, inherit.aes = F) +
