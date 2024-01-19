@@ -10,7 +10,6 @@ params:
 #| ft.align: 'left'
 library(flextable)
 library(tibble)
-library(lubridate)
 source('R/funcs.R')
 
 # table function for header

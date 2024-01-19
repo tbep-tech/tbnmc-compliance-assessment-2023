@@ -15,7 +15,7 @@ ratabcap <- function(segin){
 headertab <- function(dt = NULL, maxyr ,fsz = 13){
 
   if(is.null(dt))
-    dt <- as.character(Sys.Date())
+    dt <-  as.character(as.Date(as.numeric(Sys.Date()), origin = '1970-01-01'))
 
   totab <- tibble(
     first = c('TO:', '', 'FROM:', 'DATE:', 'SUBJECT:', 'cc', '', '', '', ''),
