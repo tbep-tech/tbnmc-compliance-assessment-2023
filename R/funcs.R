@@ -883,6 +883,15 @@ show_rawqmatrix <- function(epcdata, param = c('chla', 'la'), txtsz = 3, trgs = 
       )
     )
   
+  # make raltb same as ltb, this is how its done for ra
+  toploraltb <- toplo |> 
+    dplyr::filter(bay_segment == 'LTB') |> 
+    dplyr::filter(yr >= min(toplo |> filter(bay_segment == 'RALTB') |> pull(yr))) |> 
+    dplyr::mutate(bay_segment = factor('RALTB'))
+  toplo <- toplo |> 
+    dplyr::filter(bay_segment != 'RALTB') |>
+    dplyr::bind_rows(toploraltb)
+  
   if(abbrev)
     toplo <- toplo %>%
     dplyr::mutate(
