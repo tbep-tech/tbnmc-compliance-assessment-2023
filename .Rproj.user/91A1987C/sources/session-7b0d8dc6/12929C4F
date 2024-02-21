@@ -1,0 +1,27 @@
+{
+    "id": "12929C4F",
+    "path": "C:/proj/tbnmc-compliance-assessment-2023/R/funcs.R",
+    "project_path": "R/funcs.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1704637985293.0,
+    "source_on_save": true,
+    "relative_order": 6,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "119,0",
+        "scrollLine": "0",
+        "docOutlineVisible": "1"
+    },
+    "folds": "14|50|45|0|\n",
+    "lastKnownWriteTime": 1704749476,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1704749476107,
+    "read_only": false,
+    "read_only_alternatives": []
+}

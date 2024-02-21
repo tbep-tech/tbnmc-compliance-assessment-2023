@@ -1,0 +1,38 @@
+devtools::load_all('../tbeptools/', helpers = F)
+
+tmp <- chldat %>% 
+  rename(
+    epchc_station = station
+  ) %>% 
+  mutate(
+    sd_m = 1, 
+    bay_segment = case_when(
+      bay_segment %in% c('BCBS', 'TCB', 'MR') ~ 'RALTB', 
+      T ~ bay_segment
+    )
+  )
+
+show_ratab(tmp, yrsel = 2023, bay_segment = 'RALTB')
+
+tmp2 <- anlz_avedat(tmp) %>% 
+  .$ann
+
+
+tmp <- chldat %>% 
+  filter(bay_segment %in% c('BCBS', 'TCB', 'MR')) %>% 
+  rename(
+    epchc_station = station
+  ) %>% 
+  mutate(
+    sd_m = 1
+  )
+
+tmp2 <- anlz_avedat(tmp) %>% 
+  .$ann %>% 
+  filter(var == 'mean_chla') %>% 
+  summarise(
+    mean_chla = mean(val),
+    .by = yr
+  )
+
+  
