@@ -3,6 +3,7 @@ library(here)
 library(dplyr)
 library(sf)
 library(lubridate)
+library(readxl)
 
 source(here('R/funcs.R'))
 
@@ -12,14 +13,14 @@ source(here('R/funcs.R'))
 # epc data
 
 # local file path
-# xlsx <- here::here('data/data-raw', 'wq_data.xls')
-xlsx <- here::here('data/data-raw', 'Results_Provisional.xlsx')
+xlsx <- here::here('data/data-raw', 'wq_data.xls')
+# xlsx <- here::here('data/data-raw', 'Results_Provisional.xlsx')
 
 # import and download if new
-# wqdat <- read_importwq(xlsx, download_latest = T)
-epcdata <- read_importwq(xlsx, download_latest = F) 
+wqdat <- read_importwq(xlsx, download_latest = T)
+# epcdata <- read_importwq(xlsx, download_latest = F) 
 
-epcchl <- epcdata %>% 
+epcchl <- wqdat %>% 
   select(
     bay_segment, 
     station = epchc_station, 
@@ -59,10 +60,10 @@ bcbsseg <- st_read(here('data/data-raw/tampabay_ra_seg_watersheds.shp')) %>%
 # from pinellas water atlas, https://pinellas.wateratlas.usf.edu/
 # search by waterbody id (all bcb, narrows)
 # chlorophyll only 
-# date range 2022 to present
-pinchlraw <- read.csv(here('data/data-raw/pinchl.txt'), sep = '\t')
+# date range 2022 and partial 2023, all of 2023 was sent via email from Stacey and Alex on 2/29 so removed here and compiled below
+pinchlraw1 <- read.csv(here('data/data-raw/pinchl.txt'), sep = '\t')
 
-pinchl <- pinchlraw %>% 
+pinchl2022 <- pinchlraw1 %>% 
   filter(Parameter == 'Chla_ugl') %>% 
   select(
     station = StationID, 
@@ -79,12 +80,37 @@ pinchl <- pinchlraw %>%
     mo = month(SampleTime), 
     Latitude = as.numeric(Latitude), 
     Longitude = as.numeric(Longitude),
-    station = gsub('\\=', '', station)
+    station = gsub('\\=', '', station) # does not id stations with letter suffix as in 2023
   ) %>% 
   select(bay_segment, station, SampleTime, yr, mo, everything()) %>% 
   st_as_sf(coords = c('Longitude', 'Latitude'), crs = 4326, remove = F) %>% 
   .[bcbsseg, ] %>% 
-  st_set_geometry(NULL)  
+  st_set_geometry(NULL) |> 
+  filter(year(SampleTime) == 2022)
+
+# 2023 BCB
+# from Stacey Day, Alex Manos via email 2/29/24 (was not in Water Atlas on that date)
+pinchlraw2 <- read_excel(here('data/data-raw/BCB_chl_2023.xlsx'))
+
+pinchl2023 <- pinchlraw2 %>% 
+  select(
+    station = Site, 
+    SampleTime = Date, 
+    Latitude, 
+    Longitude, 
+    chla = `Chlorophyll a, uncorrected (µg/L)`
+  ) %>% 
+  mutate(
+    bay_segment = 'BCBS',
+    SampleTime = mdy(SampleTime), 
+    yr = year(SampleTime), 
+    mo = month(SampleTime), 
+    chla_q = NA_character_ # no qualifiers for these data
+  ) %>% 
+  select(bay_segment, station, SampleTime, yr, mo, everything()) %>% 
+  st_as_sf(coords = c('Longitude', 'Latitude'), crs = 4326, remove = F) %>% 
+  .[bcbsseg, ] %>% 
+  st_set_geometry(NULL)
 
 ##
 # MR, TCB
@@ -140,7 +166,8 @@ manchl <- manchlraw %>%
 # combine all
 chldat <- epcchl %>% 
   bind_rows(olddat) %>% 
-  bind_rows(pinchl) %>% 
+  bind_rows(pinchl2022) %>% 
+  bind_rows(pinchl2023) |> 
   bind_rows(manchl)
 
 save(chldat, file = here('data/chldat.RData'))
