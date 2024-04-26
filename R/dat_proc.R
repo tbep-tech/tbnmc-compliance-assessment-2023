@@ -127,7 +127,7 @@ pinchl2023 <- pinchlraw2 %>%
 # dep analyte name as all chlorophyll analytes
 # according to GB, this is more updated than water atlas, which pulls from WIN
 # manco data goes to win within 1 month at end of each quarter
-manchlraw <- read.csv(here('data/data-raw/manchl.txt'), sep = '|', skip = 13)
+manchlraw <- read.csv(here('data/data-raw/manchl.txt'), sep = '|', skip = 10)
 
 MR <- c('431', '433', '434', '532', '535', 'LM4')
 TCB <- c('395', '405', '408', '430')
